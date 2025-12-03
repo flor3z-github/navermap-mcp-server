@@ -1,0 +1,49 @@
+{
+  "name": "@flor3z-github/navermap-mcp-server",
+  "version": "1.0.0",
+  "description": "Naver Map API MCP Server - 주소/좌표 변환, 경로 탐색, 정적 지도 생성, 사용량 조회",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "navermap-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "naver",
+    "naver-map",
+    "geocoding",
+    "directions",
+    "korea-map"
+  ],
+  "author": "flor3z-github",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flor3z-github/navermap-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/flor3z-github/navermap-mcp-server/issues"
+  },
+  "homepage": "https://github.com/flor3z-github/navermap-mcp-server#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
