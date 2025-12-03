@@ -1,6 +1,6 @@
 # Naver Map MCP Server
 
-네이버 지도 API를 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 도구로 제공하는 서버입니다. Claude Code 및 기타 MCP 클라이언트에서 네이버 지도 기능을 사용할 수 있습니다.
+네이버 지도 API를 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 도구로 제공하는 서버입니다. Claude Desktop, Claude Code, VS Code 등 MCP 클라이언트에서 네이버 지도 기능을 사용할 수 있습니다.
 
 ## 주요 기능
 
@@ -9,6 +9,15 @@
 - **경로 탐색** (Directions): 출발지-목적지 간 거리, 소요시간, 통행료, 택시비, 유류비 계산
 - **정적 지도 이미지 생성** (Static Map): 마커, 경로가 포함된 지도 이미지 생성
 - **API 사용량 조회** (Usage): 월별 사용량, 비용, 무료 한도 대비 사용률 확인
+
+## 보안 주의사항
+
+> **주의:** 이 서버는 네이버 클라우드 API에 접근하며, 무료 한도 초과 시 요금이 부과될 수 있습니다.
+
+- API 키를 코드나 공개 저장소에 노출하지 마세요
+- 환경변수나 설정 파일을 통해 안전하게 관리하세요
+- 무료 한도를 초과하면 사용량에 따라 요금이 부과됩니다
+- `navermap_get_usage` 도구로 정기적으로 사용량을 확인하세요
 
 ## 설치
 
@@ -44,9 +53,66 @@ NCLOUD_SECRET_KEY=your_secret_key
 
 > Billing API 키가 없어도 나머지 4개 도구는 정상 작동합니다.
 
-## Claude Code 등록
+## 클라이언트 설정
 
-### 전체 기능 사용
+### Claude Desktop
+
+`claude_desktop_config.json` 파일에 다음을 추가하세요:
+
+**전체 기능 사용:**
+```json
+{
+  "mcpServers": {
+    "navermap": {
+      "command": "npx",
+      "args": ["-y", "@flor3z-github/navermap-mcp-server"],
+      "env": {
+        "NAVER_CLIENT_ID": "your_client_id",
+        "NAVER_CLIENT_SECRET": "your_client_secret",
+        "NCLOUD_ACCESS_KEY": "your_access_key",
+        "NCLOUD_SECRET_KEY": "your_secret_key"
+      }
+    }
+  }
+}
+```
+
+**Maps API만 사용:**
+```json
+{
+  "mcpServers": {
+    "navermap": {
+      "command": "npx",
+      "args": ["-y", "@flor3z-github/navermap-mcp-server"],
+      "env": {
+        "NAVER_CLIENT_ID": "your_client_id",
+        "NAVER_CLIENT_SECRET": "your_client_secret"
+      }
+    }
+  }
+}
+```
+
+### VS Code
+
+`.vscode/mcp.json` 또는 사용자 설정의 `mcp.json`에 추가:
+
+```json
+{
+  "servers": {
+    "navermap": {
+      "command": "npx",
+      "args": ["-y", "@flor3z-github/navermap-mcp-server"],
+      "env": {
+        "NAVER_CLIENT_ID": "your_client_id",
+        "NAVER_CLIENT_SECRET": "your_client_secret"
+      }
+    }
+  }
+}
+```
+
+### Claude Code
 
 ```bash
 claude mcp add navermap \
@@ -57,7 +123,7 @@ claude mcp add navermap \
   -- npx -y @flor3z-github/navermap-mcp-server
 ```
 
-### Maps API만 사용 (사용량 조회 제외)
+Maps API만 사용 시:
 
 ```bash
 claude mcp add navermap \
@@ -67,6 +133,8 @@ claude mcp add navermap \
 ```
 
 ## 제공 도구
+
+모든 도구는 읽기 전용(`readOnlyHint: true`)으로 설정되어 있어 데이터를 변경하지 않습니다.
 
 ### 1. navermap_geocode
 
@@ -155,7 +223,7 @@ claude mcp add navermap \
 
 ### 5. navermap_get_usage
 
-API 사용량과 비용을 조회합니다.
+API 사용량과 비용을 조회합니다. (NCLOUD_ACCESS_KEY, NCLOUD_SECRET_KEY 필요)
 
 **파라미터:**
 | 이름 | 필수 | 설명 |
@@ -211,6 +279,14 @@ npm run build
 
 # 개발 모드 (watch)
 npm run dev
+```
+
+### 디버깅
+
+[MCP Inspector](https://github.com/modelcontextprotocol/inspector)를 사용하여 서버를 디버깅할 수 있습니다:
+
+```bash
+npx @modelcontextprotocol/inspector npx -y @flor3z-github/navermap-mcp-server
 ```
 
 ## 라이선스
