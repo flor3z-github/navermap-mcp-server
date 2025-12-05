@@ -16,12 +16,16 @@ export function registerStaticMapTool(server: McpServer, apiClient: MapsApiClien
     async (args: StaticMapInput) => {
       try {
         const params: Record<string, string | number | undefined> = {
+          w: args.w,
+          h: args.h,
+          crs: args.crs,
           center: args.center,
           level: args.level ?? 16,
-          w: args.w ?? 300,
-          h: args.h ?? 300,
           maptype: args.maptype ?? 'basic',
+          format: args.format,
           scale: args.scale ?? 1,
+          lang: args.lang,
+          dataversion: args.dataversion,
         };
 
         // 마커 설정
@@ -29,20 +33,19 @@ export function registerStaticMapTool(server: McpServer, apiClient: MapsApiClien
           params.markers = args.markers;
         }
 
-        // 경로 설정
-        if (args.path) {
-          params.path = args.path;
-        }
-
         const imageBuffer = await apiClient.getBinary(API_ENDPOINTS.STATIC_MAP, params);
         const base64Data = imageBuffer.toString('base64');
+
+        // format에 따른 mimeType 결정
+        const format = args.format ?? 'jpg';
+        const mimeType = format === 'png' || format === 'png8' ? 'image/png' : 'image/jpeg';
 
         return {
           content: [
             {
               type: 'image' as const,
               data: base64Data,
-              mimeType: 'image/png',
+              mimeType,
             },
             {
               type: 'text' as const,
@@ -50,8 +53,9 @@ export function registerStaticMapTool(server: McpServer, apiClient: MapsApiClien
                 {
                   중심좌표: args.center,
                   줌레벨: args.level ?? 16,
-                  이미지크기: `${args.w ?? 300}x${args.h ?? 300}`,
+                  이미지크기: `${args.w}x${args.h}`,
                   지도유형: args.maptype ?? 'basic',
+                  이미지형식: format,
                 },
                 null,
                 2

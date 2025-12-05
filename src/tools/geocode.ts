@@ -20,9 +20,9 @@ export function registerGeocodeTool(server: McpServer, apiClient: MapsApiClient)
           query: args.query,
           coordinate: args.coordinate,
           filter: args.filter,
-          language: args.language,
           page: args.page,
           count: args.count,
+          language: args.language,
         });
 
         if (response.status !== 'OK') {

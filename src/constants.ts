@@ -4,10 +4,10 @@
 
 // API 엔드포인트
 export const API_ENDPOINTS = {
-  GEOCODE: "https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode",
-  REVERSE_GEOCODE: "https://naveropenapi.apigw.ntruss.com/map-reversegeocode/v2/gc",
-  DIRECTIONS: "https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving",
-  STATIC_MAP: "https://naveropenapi.apigw.ntruss.com/map-static/v2/raster",
+  GEOCODE: "https://maps.apigw.ntruss.com/map-geocode/v2/geocode",
+  REVERSE_GEOCODE: "https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc",
+  DIRECTIONS: "https://maps.apigw.ntruss.com/map-direction/v1/driving",
+  STATIC_MAP: "https://maps.apigw.ntruss.com/map-static/v2/raster",
   BILLING: "https://billingapi.apigw.ntruss.com/billing/v1/cost/getProductDemandCostList",
 } as const;
 

@@ -22,10 +22,6 @@ export const GeocodeSchema = z.object({
     .string()
     .optional()
     .describe("검색 결과 필터 (예: 'HCODE:1168000000' - 강남구만 검색)"),
-  language: z
-    .enum(["ko", "en", "ja", "zh"])
-    .optional()
-    .describe("응답 언어 (ko: 한국어, en: 영어, ja: 일본어, zh: 중국어)"),
   page: z
     .number()
     .int()
@@ -39,6 +35,10 @@ export const GeocodeSchema = z.object({
     .max(100)
     .optional()
     .describe("한 페이지당 결과 수 (기본값: 10, 최대: 100)"),
+  language: z
+    .enum(["kor", "eng"])
+    .optional()
+    .describe("응답 언어 (kor: 한국어(기본값), eng: 영어)"),
 }).strict();
 
 // Reverse Geocode 스키마
@@ -103,50 +103,64 @@ export const DirectionsSchema = z.object({
 
 // Static Map 스키마
 export const StaticMapSchema = z.object({
+  crs: z
+    .enum([
+      "EPSG:4326", "NHN:2048", "NHN:128", "EPSG:4258", "EPSG:4162",
+      "EPSG:2096", "EPSG:2097", "EPSG:2098", "EPSG:3857", "EPSG:900913", "EPSG:5179"
+    ])
+    .optional()
+    .describe("좌표 체계 (기본값: EPSG:4326(WGS84), NHN:2048(UTM-K), NHN:128(KATECH) 등)"),
   center: z
     .string()
     .regex(coordinatePattern, "좌표 형식은 '경도,위도'여야 합니다")
-    .describe("지도 중심 좌표 (경도,위도 형식, 예: '127.0368,37.5085')"),
+    .optional()
+    .describe("지도 중심 좌표 (경도,위도 형식, 예: '127.0368,37.5085'). markers 미입력 시 필수"),
   level: z
     .number()
     .int()
-    .min(1)
+    .min(0)
     .max(20)
     .optional()
-    .describe("줌 레벨 (1~20, 기본값: 16)"),
+    .describe("줌 레벨 (0~20, 기본값: 16). markers 미입력 시 필수"),
   w: z
     .number()
     .int()
     .min(1)
     .max(1024)
-    .optional()
-    .describe("이미지 너비 (픽셀, 기본값: 300, 최대: 1024)"),
+    .describe("이미지 너비 (픽셀, 1~1024)"),
   h: z
     .number()
     .int()
     .min(1)
     .max(1024)
-    .optional()
-    .describe("이미지 높이 (픽셀, 기본값: 300, 최대: 1024)"),
+    .describe("이미지 높이 (픽셀, 1~1024)"),
   maptype: z
     .enum(["basic", "traffic", "satellite", "satellite_base", "terrain"])
     .optional()
-    .describe("지도 유형: basic(일반), traffic(교통), satellite(위성), satellite_base(위성+라벨), terrain(지형)"),
-  markers: z
-    .string()
+    .describe("지도 유형: basic(일반, 기본값), traffic(교통), satellite(위성), satellite_base(위성+라벨), terrain(지형)"),
+  format: z
+    .enum(["jpg", "jpeg", "png8", "png"])
     .optional()
-    .describe("마커 설정 (형식: 'type:d|size:mid|pos:경도 위도|color:red')"),
-  path: z
-    .string()
-    .optional()
-    .describe("경로 설정 (형식: 'color:0x0000FF|weight:5|경도1 위도1,경도2 위도2')"),
+    .describe("이미지 형식: jpg/jpeg(기본값, 85% 품질), png8(8비트), png(24비트)"),
   scale: z
     .number()
     .int()
     .min(1)
     .max(2)
     .optional()
-    .describe("이미지 스케일 (1 또는 2, 기본값: 1)"),
+    .describe("해상도: 1(기본값, 256x256 타일), 2(고해상도, 512x512 타일)"),
+  markers: z
+    .string()
+    .optional()
+    .describe("마커 설정. center/level 미입력 시 필수. 형식: 'type:d|size:mid|pos:경도 위도|color:red'. 최대 20개, '|'로 옵션 구분"),
+  lang: z
+    .enum(["ko", "en", "ja", "zh"])
+    .optional()
+    .describe("라벨 언어: ko(한국어, 기본값), en(영어), ja(일본어), zh(중국어 간체)"),
+  dataversion: z
+    .string()
+    .optional()
+    .describe("버전 정보. 이미지 캐싱 문제 해결용. Data Version API로 확인 가능"),
 }).strict();
 
 // Usage 스키마
