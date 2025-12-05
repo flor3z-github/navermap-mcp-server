@@ -1,6 +1,6 @@
 {
   "name": "@flor3z-github/navermap-mcp-server",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Naver Map API MCP Server - 주소/좌표 변환, 경로 탐색, 정적 지도 생성, 사용량 조회",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
