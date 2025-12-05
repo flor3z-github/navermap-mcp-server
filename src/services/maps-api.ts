@@ -1,17 +1,86 @@
 /**
  * Naver Maps API 클라이언트
- * 공통 인증 로직 및 HTTP 요청 처리
+ * 공통 인증 로직, HTTP 요청 처리, 재시도 로직
  */
 
-import type { EnvConfig } from "../types.js";
+import type { NaverMapConfig } from '../config.js';
+import { NaverMapError, handleFetchError } from '../utils/errors.js';
+
+/**
+ * Fetch with retry logic and timeout
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  config: { timeout: number; maxRetries: number }
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), config.timeout);
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        // Don't retry on client errors (4xx) except 429 (rate limit)
+        if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+          return response;
+        }
+
+        // Retry on 5xx errors and 429
+        if (response.ok) {
+          return response;
+        }
+
+        // If we should retry, continue to next attempt
+        if (attempt < config.maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        return response;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Don't retry on abort (timeout) or if we've exhausted retries
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new NaverMapError('요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.', 408);
+      }
+
+      if (attempt < config.maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+    }
+  }
+
+  throw lastError || new NaverMapError('알 수 없는 오류가 발생했습니다.');
+}
 
 export class MapsApiClient {
   private clientId: string;
   private clientSecret: string;
+  private timeout: number;
+  private maxRetries: number;
 
-  constructor(config: EnvConfig) {
-    this.clientId = config.naverClientId;
-    this.clientSecret = config.naverClientSecret;
+  constructor(config: NaverMapConfig) {
+    this.clientId = config.naver.clientId;
+    this.clientSecret = config.naver.clientSecret;
+    this.timeout = config.request.timeout;
+    this.maxRetries = config.request.maxRetries;
   }
 
   /**
@@ -19,8 +88,8 @@ export class MapsApiClient {
    */
   private getHeaders(): Record<string, string> {
     return {
-      "x-ncp-apigw-api-key-id": this.clientId,
-      "x-ncp-apigw-api-key": this.clientSecret,
+      'x-ncp-apigw-api-key-id': this.clientId,
+      'x-ncp-apigw-api-key': this.clientSecret,
     };
   }
 
@@ -38,18 +107,17 @@ export class MapsApiClient {
       }
     }
 
-    const response = await fetch(urlObj.toString(), {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
+    const response = await fetchWithRetry(
+      urlObj.toString(),
+      {
+        method: 'GET',
+        headers: this.getHeaders(),
+      },
+      { timeout: this.timeout, maxRetries: this.maxRetries }
+    );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new MapsApiError(
-        `API 요청 실패 (${response.status})`,
-        response.status,
-        errorText
-      );
+      await handleFetchError(response);
     }
 
     return response.json() as Promise<T>;
@@ -58,7 +126,10 @@ export class MapsApiClient {
   /**
    * 바이너리 데이터 GET 요청 (이미지 등)
    */
-  async getBinary(url: string, params?: Record<string, string | number | undefined>): Promise<Buffer> {
+  async getBinary(
+    url: string,
+    params?: Record<string, string | number | undefined>
+  ): Promise<Buffer> {
     const urlObj = new URL(url);
 
     if (params) {
@@ -69,18 +140,17 @@ export class MapsApiClient {
       }
     }
 
-    const response = await fetch(urlObj.toString(), {
-      method: "GET",
-      headers: this.getHeaders(),
-    });
+    const response = await fetchWithRetry(
+      urlObj.toString(),
+      {
+        method: 'GET',
+        headers: this.getHeaders(),
+      },
+      { timeout: this.timeout, maxRetries: this.maxRetries }
+    );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new MapsApiError(
-        `API 요청 실패 (${response.status})`,
-        response.status,
-        errorText
-      );
+      await handleFetchError(response);
     }
 
     const arrayBuffer = await response.arrayBuffer();
@@ -88,69 +158,5 @@ export class MapsApiClient {
   }
 }
 
-/**
- * Maps API 에러 클래스
- */
-export class MapsApiError extends Error {
-  public readonly statusCode: number;
-  public readonly details: string;
-
-  constructor(message: string, statusCode: number, details: string) {
-    super(message);
-    this.name = "MapsApiError";
-    this.statusCode = statusCode;
-    this.details = details;
-  }
-
-  /**
-   * 사용자 친화적 에러 메시지 반환
-   */
-  toUserMessage(): string {
-    switch (this.statusCode) {
-      case 400:
-        return `잘못된 요청입니다. 입력값을 확인해주세요. 상세: ${this.details}`;
-      case 401:
-        return "인증에 실패했습니다. NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET 환경변수를 확인해주세요.";
-      case 403:
-        return "API 접근 권한이 없습니다. Naver Cloud Platform에서 API 사용 설정을 확인해주세요.";
-      case 404:
-        return "요청한 리소스를 찾을 수 없습니다.";
-      case 429:
-        return "API 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요.";
-      case 500:
-      case 502:
-      case 503:
-        return "Naver API 서버에 일시적인 문제가 있습니다. 잠시 후 다시 시도해주세요.";
-      default:
-        return `API 오류가 발생했습니다 (${this.statusCode}): ${this.details}`;
-    }
-  }
-}
-
-/**
- * 환경변수에서 설정 로드
- */
-export function loadEnvConfig(): EnvConfig {
-  const naverClientId = process.env.NAVER_CLIENT_ID;
-  const naverClientSecret = process.env.NAVER_CLIENT_SECRET;
-
-  if (!naverClientId || !naverClientSecret) {
-    throw new Error(
-      "필수 환경변수가 설정되지 않았습니다. NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET을 설정해주세요."
-    );
-  }
-
-  return {
-    naverClientId,
-    naverClientSecret,
-    ncloudAccessKey: process.env.NCLOUD_ACCESS_KEY,
-    ncloudSecretKey: process.env.NCLOUD_SECRET_KEY,
-  };
-}
-
-/**
- * Billing API 사용 가능 여부 확인
- */
-export function isBillingApiAvailable(config: EnvConfig): boolean {
-  return Boolean(config.ncloudAccessKey && config.ncloudSecretKey);
-}
+// Re-export NaverMapError for backward compatibility
+export { NaverMapError as MapsApiError } from '../utils/errors.js';

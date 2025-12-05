@@ -2,40 +2,26 @@
  * navermap_get_usage 도구 - Maps API 사용량 + 비용 + 무료 한도 대비 사용률 조회
  */
 
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { UsageSchema, type UsageInput } from "../schemas/index.js";
-import { BillingApiClient, BillingApiError } from "../services/billing-api.js";
-import { FREE_LIMITS, WARNING_THRESHOLD } from "../constants.js";
-import type { EnvConfig, UsageServiceInfo, BillingDemandCost } from "../types.js";
-
-/**
- * YYYYMM 형식으로 변환
- */
-function toYYYYMM(yearMonth: string): string {
-  return yearMonth.replace("-", "");
-}
-
-/**
- * 당월을 YYYY-MM 형식으로 반환
- */
-function getCurrentMonth(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-}
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { UsageSchema, type UsageInput } from '../schemas/index.js';
+import { BillingApiClient, BillingApiError } from '../services/billing-api.js';
+import { createErrorResponse } from '../utils/errors.js';
+import { getCurrentMonth, toYYYYMM, formatNumber, formatCurrency } from '../utils/formatters.js';
+import { FREE_LIMITS, WARNING_THRESHOLD } from '../constants.js';
+import type { NaverMapConfig } from '../config.js';
+import type { UsageServiceInfo, BillingDemandCost } from '../types.js';
 
 /**
  * 서비스명 매핑 (Billing API 응답 → 무료 한도 키)
  */
 function mapServiceName(productItemKindDetailName: string): string | null {
   const mapping: Record<string, string> = {
-    "Dynamic Map": "Dynamic Map",
-    "Static Map": "Static Map",
-    Geocoding: "Geocoding",
-    "Reverse Geocoding": "Reverse Geocoding",
-    "Directions 5": "Directions 5",
-    "Directions 15": "Directions 15",
+    'Dynamic Map': 'Dynamic Map',
+    'Static Map': 'Static Map',
+    Geocoding: 'Geocoding',
+    'Reverse Geocoding': 'Reverse Geocoding',
+    'Directions 5': 'Directions 5',
+    'Directions 15': 'Directions 15',
   };
 
   // 부분 일치 검색
@@ -67,19 +53,19 @@ function aggregateUsage(costs: BillingDemandCost[]): Map<string, { usage: number
   return result;
 }
 
-export function registerUsageTool(server: McpServer, config: EnvConfig): void {
+export function registerUsageTool(server: McpServer, config: NaverMapConfig): void {
   server.tool(
-    "navermap_get_usage",
-    "Naver Maps API 사용량, 비용, 무료 한도 대비 사용률을 조회합니다. 월별 사용 현황과 경고를 제공합니다.",
+    'navermap_get_usage',
+    'Naver Maps API 사용량, 비용, 무료 한도 대비 사용률을 조회합니다. 월별 사용 현황과 경고를 제공합니다.',
     UsageSchema.shape,
     async (args: UsageInput) => {
       // Billing API 키가 없으면 에러 반환
-      if (!config.ncloudAccessKey || !config.ncloudSecretKey) {
+      if (!config.ncloud.accessKey || !config.ncloud.secretKey) {
         return {
           content: [
             {
-              type: "text" as const,
-              text: "사용량 조회 기능을 사용하려면 NCLOUD_ACCESS_KEY와 NCLOUD_SECRET_KEY 환경변수가 필요합니다.",
+              type: 'text' as const,
+              text: '사용량 조회 기능을 사용하려면 NCLOUD_ACCESS_KEY와 NCLOUD_SECRET_KEY 환경변수가 필요합니다.',
             },
           ],
           isError: true,
@@ -95,11 +81,11 @@ export function registerUsageTool(server: McpServer, config: EnvConfig): void {
 
         const responseData = response.getProductDemandCostListResponse;
 
-        if (responseData.returnCode !== "0") {
+        if (responseData.returnCode !== '0') {
           return {
             content: [
               {
-                type: "text" as const,
+                type: 'text' as const,
                 text: `사용량 조회에 실패했습니다: ${responseData.returnMessage}`,
               },
             ],
@@ -110,9 +96,9 @@ export function registerUsageTool(server: McpServer, config: EnvConfig): void {
         // Maps 관련 항목만 필터링
         const mapsCosts = (responseData.productDemandCostList ?? []).filter(
           (cost) =>
-            cost.productCategory === "Maps" ||
-            cost.productName.includes("Maps") ||
-            cost.productName.includes("Map")
+            cost.productCategory === 'Maps' ||
+            cost.productName.includes('Maps') ||
+            cost.productName.includes('Map')
         );
 
         // 사용량 집계
@@ -149,11 +135,11 @@ export function registerUsageTool(server: McpServer, config: EnvConfig): void {
         let text = `## ${month} Naver Maps API 사용량 현황\n\n`;
 
         if (warnings.length > 0) {
-          text += `### ⚠️ 경고\n`;
+          text += `### 경고\n`;
           for (const warning of warnings) {
             text += `- ${warning}\n`;
           }
-          text += "\n";
+          text += '\n';
         }
 
         text += `### 서비스별 사용량\n\n`;
@@ -161,19 +147,19 @@ export function registerUsageTool(server: McpServer, config: EnvConfig): void {
         text += `|--------|--------|----------|--------|------|\n`;
 
         for (const service of services) {
-          const usageStr = service.usage.toLocaleString("ko-KR");
-          const limitStr = service.freeLimit.toLocaleString("ko-KR");
+          const usageStr = formatNumber(service.usage);
+          const limitStr = formatNumber(service.freeLimit);
           const rateStr = `${service.usageRate}%`;
-          const costStr = `${service.cost.toLocaleString("ko-KR")}원`;
+          const costStr = formatCurrency(service.cost);
           text += `| ${service.name} | ${usageStr} | ${limitStr} | ${rateStr} | ${costStr} |\n`;
         }
 
-        text += `\n### 총 비용: ${totalCost.toLocaleString("ko-KR")}원\n`;
+        text += `\n### 총 비용: ${formatCurrency(totalCost)}\n`;
 
         return {
           content: [
             {
-              type: "text" as const,
+              type: 'text' as const,
               text,
             },
           ],
@@ -183,14 +169,14 @@ export function registerUsageTool(server: McpServer, config: EnvConfig): void {
           return {
             content: [
               {
-                type: "text" as const,
+                type: 'text' as const,
                 text: error.toUserMessage(),
               },
             ],
             isError: true,
           };
         }
-        throw error;
+        return createErrorResponse(error);
       }
     }
   );

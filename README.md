@@ -270,6 +270,8 @@ Naver Maps API는 월별 무료 이용량을 제공합니다:
 
 ## 개발
 
+### 설치 및 빌드
+
 ```bash
 # 의존성 설치
 npm install
@@ -277,8 +279,28 @@ npm install
 # 빌드
 npm run build
 
-# 개발 모드 (watch)
+# 개발 모드 (tsx로 직접 실행)
 npm run dev
+```
+
+### 테스트
+
+```bash
+# 테스트 실행
+npm test
+
+# 커버리지 포함 테스트
+npm run test:coverage
+```
+
+### 코드 품질
+
+```bash
+# 린트 검사
+npm run lint
+
+# 코드 포맷팅
+npm run format
 ```
 
 ### 디버깅
@@ -286,8 +308,24 @@ npm run dev
 [MCP Inspector](https://github.com/modelcontextprotocol/inspector)를 사용하여 서버를 디버깅할 수 있습니다:
 
 ```bash
+npm run inspector
+# 또는
 npx @modelcontextprotocol/inspector npx -y @flor3z-github/navermap-mcp-server
 ```
+
+### 환경 변수
+
+추가 환경 변수로 동작을 조정할 수 있습니다:
+
+| 변수 | 기본값 | 설명 |
+|------|--------|------|
+| LOG_LEVEL | info | 로그 레벨 (debug, info, warn, error) |
+| REQUEST_TIMEOUT | 30000 | API 요청 타임아웃 (ms) |
+| MAX_RETRIES | 3 | 실패 시 재시도 횟수 |
+
+## 기여
+
+기여를 환영합니다! Pull Request를 보내주세요.
 
 ## 라이선스
 
