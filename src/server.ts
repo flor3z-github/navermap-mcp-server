@@ -100,30 +100,9 @@ export async function runServer(): Promise<void> {
     throw error;
   }
 
-  // Keep the process alive
-  const keepAlive = globalThis.setInterval(() => {}, 1000000);
-
-  // Handle stdin properly for MCP
-  process.stdin.setEncoding('utf8');
-  process.stdin.resume();
-
-  // Handle stdin closure (when client disconnects)
-  process.stdin.on('end', () => {
-    console.error(`[${getTimestamp()}] [INFO] Client disconnected (stdin closed)`);
-    globalThis.clearInterval(keepAlive);
-    process.exit(0);
-  });
-
-  process.stdin.on('error', (error) => {
-    console.error(`[${getTimestamp()}] [ERROR] Stdin error:`, error);
-    globalThis.clearInterval(keepAlive);
-    process.exit(1);
-  });
-
   // Handle process termination gracefully
   const cleanup = (signal: string) => {
     console.error(`[${getTimestamp()}] [INFO] Received ${signal}, shutting down...`);
-    globalThis.clearInterval(keepAlive);
     process.exit(0);
   };
 
