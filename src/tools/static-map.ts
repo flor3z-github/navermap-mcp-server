@@ -2,15 +2,16 @@
  * navermap_get_static_map 도구 - 정적 지도 이미지 생성
  */
 
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StaticMapSchema, type StaticMapInput } from "../schemas/index.js";
-import { MapsApiClient, MapsApiError } from "../services/maps-api.js";
-import { API_ENDPOINTS } from "../constants.js";
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StaticMapSchema, type StaticMapInput } from '../schemas/index.js';
+import { MapsApiClient, MapsApiError } from '../services/maps-api.js';
+import { createErrorResponse } from '../utils/errors.js';
+import { API_ENDPOINTS } from '../constants.js';
 
 export function registerStaticMapTool(server: McpServer, apiClient: MapsApiClient): void {
   server.tool(
-    "navermap_get_static_map",
-    "지정한 좌표를 중심으로 정적 지도 이미지를 생성합니다. 마커와 경로 표시가 가능합니다.",
+    'navermap_get_static_map',
+    '지정한 좌표를 중심으로 정적 지도 이미지를 생성합니다. 마커와 경로 표시가 가능합니다.',
     StaticMapSchema.shape,
     async (args: StaticMapInput) => {
       try {
@@ -19,7 +20,7 @@ export function registerStaticMapTool(server: McpServer, apiClient: MapsApiClien
           level: args.level ?? 16,
           w: args.w ?? 300,
           h: args.h ?? 300,
-          maptype: args.maptype ?? "basic",
+          maptype: args.maptype ?? 'basic',
           scale: args.scale ?? 1,
         };
 
@@ -34,23 +35,23 @@ export function registerStaticMapTool(server: McpServer, apiClient: MapsApiClien
         }
 
         const imageBuffer = await apiClient.getBinary(API_ENDPOINTS.STATIC_MAP, params);
-        const base64Data = imageBuffer.toString("base64");
+        const base64Data = imageBuffer.toString('base64');
 
         return {
           content: [
             {
-              type: "image" as const,
+              type: 'image' as const,
               data: base64Data,
-              mimeType: "image/png",
+              mimeType: 'image/png',
             },
             {
-              type: "text" as const,
+              type: 'text' as const,
               text: JSON.stringify(
                 {
                   중심좌표: args.center,
                   줌레벨: args.level ?? 16,
                   이미지크기: `${args.w ?? 300}x${args.h ?? 300}`,
-                  지도유형: args.maptype ?? "basic",
+                  지도유형: args.maptype ?? 'basic',
                 },
                 null,
                 2
@@ -63,14 +64,14 @@ export function registerStaticMapTool(server: McpServer, apiClient: MapsApiClien
           return {
             content: [
               {
-                type: "text" as const,
+                type: 'text' as const,
                 text: error.toUserMessage(),
               },
             ],
             isError: true,
           };
         }
-        throw error;
+        return createErrorResponse(error);
       }
     }
   );

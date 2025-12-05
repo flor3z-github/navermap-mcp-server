@@ -2,14 +2,6 @@
  * Naver Map MCP Server 타입 정의
  */
 
-// 환경변수 설정
-export interface EnvConfig {
-  naverClientId: string;
-  naverClientSecret: string;
-  ncloudAccessKey?: string;
-  ncloudSecretKey?: string;
-}
-
 // Geocode API 응답
 export interface GeocodeAddress {
   roadAddress: string;
