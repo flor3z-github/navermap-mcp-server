@@ -26,13 +26,23 @@ export default [
         global: 'readonly',
         module: 'readonly',
         require: 'readonly',
-        exports: 'readonly'
+        exports: 'readonly',
+        // Node.js 18+ built-in globals
+        fetch: 'readonly',
+        Response: 'readonly',
+        Request: 'readonly',
+        RequestInit: 'readonly',
+        AbortController: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly'
       }
     },
     plugins: {
       '@typescript-eslint': tseslint
     },
     rules: {
+      // Disable base rule as it conflicts with TypeScript
+      'no-unused-vars': 'off',
       // TypeScript rules
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
